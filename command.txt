@@ -1,0 +1,9 @@
+#后台运行变速率的压缩模型训练，训练数据是选取3个波段的遥感数据
+
+nohup python train-var-rate.py --model qarv_base --trainset hsiband3-train --valset hsiband3-val --resume qarv_base_0 --batch_size 8 --iterations 2_000_000 --workers 8 > custon_out.log 2>&1 &
+
+# 运行固定速率的压缩模型
+python train-var-rate.py --model qarv_base --model_args 'lmb_range=(16,16)' --wbproject qarv_fix --trainset hsiband3-train --valset hsiband3-val --batch_size 8 --iterations 2_000_000 --workers 8
+
+# 运行固定速率的压缩模型——高光谱数据
+python train-var-rate.py --model qarv_hsi --model_args 'lmb_range=(16,16)'  --resume 'qarv_hsi_0' --wbproject qarv_hsi --trainset hsi-train --valset hsi-val --batch_size 8 --iterations 400_000 --workers 8

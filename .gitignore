@@ -1,0 +1,22 @@
+# Exclude large data files
+*.npy
+*.bin
+*.zip
+*.tar
+*.tar.gz
+data/
+images/
+
+# Exclude model checkpoints and outputs
+*.pt
+*.pth
+*.log
+*.out
+nohup.out
+
+# Python environment
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+.vscode/
+.git/
