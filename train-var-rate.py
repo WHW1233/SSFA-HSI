@@ -12,7 +12,7 @@ from lvae.datasets.hsi import get_hsi_dateset
 import tempfile
 
 # 修改临时文件的位置
-tempfile.tempdir = '/home/ubuntu/data/tmp'
+# tempfile.tempdir = '/home/ubuntu/data/tmp'
 
 def parse_args():
     # ====== set the run settings ======

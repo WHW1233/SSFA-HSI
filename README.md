@@ -70,7 +70,25 @@ python train_task_adapter.py
 The script will:
 1. Automatically detect and allocate CUDA execution on the RTX 4090 GPU.
 2. Initialize `qarv_hsi_lower` in `adapted=True` mode (freezing the base codec and mounting active SSFMA modules).
-3. Set up the co-adaptation optimizer tracking both the adapters and U-Net segmenter weights.
+
+## Pre-Training the Base Compression Model
+
+If you do not have a pre-trained base VAE, you can train `qarv_hsi_lower` from scratch on the RTX 4090 GPU:
+
+```bash
+python train-var-rate.py \
+    --model qarv_hsi_lower \
+    --trainset hysp11k-ext-train \
+    --valset hysp11k-ext-val \
+    --iterations 500000 \
+    --model_val_interval 5000 \
+    --batch_size 16 \
+    --workers 8 \
+    --amp
+```
+
+- `--amp` ensures automatic mixed precision is used for speed.
+- The base model must be trained first before you run the co-adaptation script.
 4. Train under the joint RDT loss:
    $$L = \text{Rate} + \lambda_H \cdot \left[ (1 - \alpha) \cdot \text{MSE} + \alpha \cdot \text{SAM} \right] + \lambda_M \cdot L_{\text{task}}$$
 5. Save the optimized parameter checkpoints to `adapters_and_task_head.pt`.

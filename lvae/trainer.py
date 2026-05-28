@@ -99,6 +99,15 @@ class BaseTrainingWrapper():
         self._log_dir = log_dir
 
     def set_device(self):
+        if not torch.cuda.is_available():
+            logging.info("CUDA not available. Using CPU.")
+            self.device = torch.device('cpu')
+            self.local_rank = -1
+            self.world_size = 1
+            self.distributed = False
+            self.is_main = True
+            return
+
         local_rank = max(self.local_rank, 0)
         world_size = self.world_size
 
@@ -423,8 +432,11 @@ class BaseTrainingWrapper():
         n = len(str(cfg.iterations))
         self.stats_table['Iter'] = f'{self._cur_iter:>{n}}/{cfg.iterations-1}'
 
-        mem = torch.cuda.max_memory_allocated(self.device) / 1e9
-        torch.cuda.reset_peak_memory_stats()
+        if torch.cuda.is_available():
+            mem = torch.cuda.max_memory_allocated(self.device) / 1e9
+            torch.cuda.reset_peak_memory_stats()
+        else:
+            mem = 0.0
         self.stats_table['GPU_mem'] = f'{mem:.3g}G'
 
         cur_lr = self.optimizer.param_groups[0]['lr']
