@@ -469,7 +469,7 @@ class VariableRateLossyVAE(nn.Module):
             real = tvf.to_tensor(img)
             fake = self.process_output(x_hat).cpu().squeeze(0)
             mse = tnf.mse_loss(real, fake, reduction='mean').item()
-            psnr = float(-10 * math.log10(mse))
+            psnr = float(-10 * math.log10(max(mse, 1e-10)))
             # accumulate results
             all_image_stats['count'] += 1
             all_image_stats['loss'] += float(kl.item() + lmb * distortion)

@@ -40,8 +40,8 @@ known_datasets = {
     'hysp11k-train': _root / 'HSI/train/train_hyspecnet11k',
     'hysp11k-val': _root / 'HSI/test/val_hyspecnet11k',
 
-    'hysp11k-ext-train': '/media/nercms/EXTERNAL_USB/satellite_data/HSI_data/hyspecnet11k/data',
-    'hysp11k-ext-val': '/media/nercms/EXTERNAL_USB/satellite_data/HSI_data/hyspecnet11k/test_data/test_data'
+    'hysp11k-ext-train': '/root/dataset/hyspecnet11k/data',
+    'hysp11k-ext-val': '/root/dataset/hyspecnet11k/test_data'
 
 
 }
