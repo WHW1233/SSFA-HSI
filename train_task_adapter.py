@@ -108,7 +108,7 @@ def run_co_adaptation(
 
     # A. Load pre-trained HSI base codec with adapters enabled
     print("Loading base codec 'qarv_hsi_lower' with SSFMA adapters...")
-    model = get_model("qarv_hsi_lower", adapted=True)
+    model = get_model("qarv_hsi_lower", pretrained="/media/nercms/EXTERNAL_USB/orin_backup/projects/runs/qarv/qarv_hsi_lower_0/best.pt", adapted=True)
     model.to(device)
     model.train()
 

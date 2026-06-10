@@ -94,7 +94,7 @@ def qarv_hsi(lmb_range=(32,8190), pretrained=False):
         if not isinstance(pretrained, str):
             raise TypeError("pretrained 必须是字符串类型")
         else: # str or Path
-            msd = torch.load(pretrained)['model']
+            msd = torch.load(pretrained, map_location='cpu')['model']
             print('load pretrained model from'+ pretrained)
             model.load_state_dict(msd)
     return model
@@ -197,7 +197,7 @@ def qarv_hsi_lower(lmb_range=(32,4096), pretrained=False, adapted=False):
         if not isinstance(pretrained, str):
             raise TypeError("pretrained 必须是字符串类型")
         else: # str or Path
-            msd = torch.load(pretrained)['model']
+            msd = torch.load(pretrained, map_location='cpu')['model']
             print('load pretrained model from'+ pretrained)
             model.load_state_dict(msd)
 
@@ -321,7 +321,7 @@ def qarv_hsi_higher(lmb_range=(16,2048), pretrained=False):
         if not isinstance(pretrained, str):
             raise TypeError("pretrained 必须是字符串类型")
         else: # str or Path
-            msd = torch.load(pretrained)['model']
+            msd = torch.load(pretrained, map_location='cpu')['model']
             print('load pretrained model from'+ pretrained)
             model.load_state_dict(msd)
     return model
