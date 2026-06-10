@@ -13,62 +13,31 @@ from lvae.models.registry import get_model
 from lvae.datasets.hsi import get_hsi_dateset
 
 # ==========================================
-# 1. Downstream Task Network: Lightweight U-Net
+# 1. Downstream Task Network: Classifier
 # ==========================================
-class DoubleConv(nn.Module):
-    def __init__(self, in_channels, out_channels):
+class Classifier(nn.Module):
+    def __init__(self, in_channels=30, num_classes=9):
         super().__init__()
-        self.conv = nn.Sequential(
-            nn.Conv2d(in_channels, out_channels, kernel_size=3, padding=1, bias=False),
-            nn.BatchNorm2d(out_channels),
+        self.features = nn.Sequential(
+            nn.Conv2d(in_channels, 64, kernel_size=3, padding=1),
+            nn.BatchNorm2d(64),
             nn.ReLU(inplace=True),
-            nn.Conv2d(out_channels, out_channels, kernel_size=3, padding=1, bias=False),
-            nn.BatchNorm2d(out_channels),
-            nn.ReLU(inplace=True)
+            nn.MaxPool2d(2, 2), # 32x32
+            nn.Conv2d(64, 128, kernel_size=3, padding=1),
+            nn.BatchNorm2d(128),
+            nn.ReLU(inplace=True),
+            nn.MaxPool2d(2, 2), # 16x16
+            nn.Conv2d(128, 256, kernel_size=3, padding=1),
+            nn.BatchNorm2d(256),
+            nn.ReLU(inplace=True),
+            nn.AdaptiveAvgPool2d((1, 1))
         )
+        self.classifier = nn.Linear(256, num_classes)
 
     def forward(self, x):
-        return self.conv(x)
-
-class UNet(nn.Module):
-    def __init__(self, in_channels=30, num_classes=10):
-        super().__init__()
-        self.inc = DoubleConv(in_channels, 32)
-        self.down1 = nn.Sequential(nn.MaxPool2d(2), DoubleConv(32, 64))
-        self.down2 = nn.Sequential(nn.MaxPool2d(2), DoubleConv(64, 128))
-        
-        self.up1 = nn.ConvTranspose2d(128, 64, kernel_size=2, stride=2)
-        self.conv_up1 = DoubleConv(128, 64)
-        
-        self.up2 = nn.ConvTranspose2d(64, 32, kernel_size=2, stride=2)
-        self.conv_up2 = DoubleConv(64, 32)
-        
-        self.outc = nn.Conv2d(32, num_classes, kernel_size=1)
-
-    def forward(self, x):
-        x1 = self.inc(x)
-        x2 = self.down1(x1)
-        x3 = self.down2(x2)
-        
-        # Decoder
-        x = self.up1(x3)
-        # Handle spatial dimension padding mismatches if any
-        diffY = x2.size()[2] - x.size()[2]
-        diffX = x2.size()[3] - x.size()[3]
-        x = nn.functional.pad(x, [diffX // 2, diffX - diffX // 2,
-                                  diffY // 2, diffY - diffY // 2])
-        x = torch.cat([x2, x], dim=1)
-        x = self.conv_up1(x)
-        
-        x = self.up2(x)
-        diffY = x1.size()[2] - x.size()[2]
-        diffX = x1.size()[3] - x.size()[3]
-        x = nn.functional.pad(x, [diffX // 2, diffX - diffX // 2,
-                                  diffY // 2, diffY - diffY // 2])
-        x = torch.cat([x1, x], dim=1)
-        x = self.conv_up2(x)
-        
-        logits = self.outc(x)
+        x = self.features(x)
+        x = torch.flatten(x, 1)
+        logits = self.classifier(x)
         return logits
 
 # ==========================================
@@ -112,26 +81,26 @@ def run_co_adaptation(
     model.to(device)
     model.train()
 
-    # B. Load downstream semantic segmenter
-    print("Initializing segmentation task U-Net model...")
-    num_classes = 10
-    segmenter = UNet(in_channels=30, num_classes=num_classes)
-    segmenter.to(device)
-    segmenter.train()
+    # B. Load downstream classifier
+    print("Initializing classification task model...")
+    num_classes = 9
+    task_model = Classifier(in_channels=30, num_classes=num_classes)
+    task_model.to(device)
+    task_model.train()
 
     # C. Initialize co-adaptation optimizer
-    # Optimizes ONLY the adapters and the U-Net parameters
+    # Optimizes ONLY the adapters and the classifier parameters
     optimizer = optim.Adam(
-        list(model.adapters.parameters()) + list(segmenter.parameters()),
+        list(model.adapters.parameters()) + list(task_model.parameters()),
         lr=lr
     )
     
     criterion_task = nn.CrossEntropyLoss()
 
-    # D. Setup HSI DataLoaders (HySpecNet-11k external 8-bit dataset)
-    print("Preparing data loaders for HySpecNet-11k external 8-bit dataset...")
-    # 'hysp11k-ext-train' points to /media/nercms/EXTERNAL_USB/satellite_data/HSI_data/hyspecnet11k/data
-    train_dataset = get_hsi_dateset('hysp11k-ext-train')
+    # D. Setup HSI DataLoaders (OHS_MS_4_9_8bit_npy)
+    print("Preparing data loaders for WHU-OHS dataset...")
+    # 'ohs-train' points to /media/nercms/EXTERNAL_USB/satellite_data/WHU-OHS/OHS_MS_4_9_8bit_npy/train
+    train_dataset = get_hsi_dateset('ohs-train')
     train_loader = DataLoader(
         train_dataset, 
         batch_size=batch_size, 
@@ -152,8 +121,10 @@ def run_co_adaptation(
         epoch_task = 0.0
 
         for step, batch in enumerate(train_loader):
-            # Input batch shape is (B, 30, 128, 128), values in [0.0, 1.0]
-            im = batch.to(device)
+            # Input batch is (im, label)
+            im, target = batch
+            im = im.to(device)
+            target = target.to(device)
             B, C, H, W = im.shape
 
             # Zero gradients
@@ -167,8 +138,8 @@ def run_co_adaptation(
             # 2. Get reconstructed output
             im_hat = torch.clamp(x_hat, min=-1.0, max=1.0) * 0.5 + 0.5
 
-            # 3. Predict land-cover classes on reconstructed HSI
-            pred_mask = segmenter(im_hat)
+            # 3. Predict image class on reconstructed HSI
+            pred_logits = task_model(im_hat)
 
             # 4. Multi-Task Optimization Loss (RDT Loss)
             # A. Rate (KL Divergence in bpp)
@@ -183,15 +154,12 @@ def run_co_adaptation(
             d_human = (1 - alpha) * mse_loss_val + alpha * sam_loss_val
 
             # C. Task Loss (CrossEntropy)
-            # For HyspecNet-11k dry-run, we simulate ground truth masks on the fly
-            # In real-world, target_mask is loaded alongside the patch
-            target_mask = torch.randint(0, num_classes, (B, H, W), dtype=torch.long, device=device)
-            task_loss_val = criterion_task(pred_mask, target_mask)
+            task_loss_val = criterion_task(pred_logits, target)
 
             # D. Combined Rate-Distortion-Task (RDT) Loss
             total_loss = rate + lambda_h * d_human + lambda_m * task_loss_val
 
-            # Backpropagation (Backprops to both model.adapters and segmenter)
+            # Backpropagation (Backprops to both model.adapters and classifier)
             total_loss.backward()
             optimizer.step()
 
@@ -217,11 +185,11 @@ def run_co_adaptation(
         avg_loss = epoch_loss / min(len(train_loader), dry_run_steps)
         print(f"\n--- Epoch {epoch+1} Completed. Avg RDT Loss: {avg_loss:.4f} ---")
 
-    # Save trained adapters and segmenter state dicts
+    # Save trained adapters and classifier state dicts
     save_path = "/home/nercms/compression/qarv_0801/adapters_and_task_head.pt"
     torch.save({
         'adapters': model.adapters.state_dict(),
-        'segmenter': segmenter.state_dict(),
+        'classifier': task_model.state_dict(),
     }, save_path)
     print(f"Saved co-adapted weights successfully to: {save_path}")
     print("Co-adaptation integration pipeline run successfully completed!")

@@ -41,7 +41,10 @@ known_datasets = {
     'hysp11k-val': _root / 'HSI/test/val_hyspecnet11k',
 
     'hysp11k-ext-train': '/media/nercms/EXTERNAL_USB/satellite_data/HSI_data/hyspecnet11k/data',
-    'hysp11k-ext-val': '/media/nercms/EXTERNAL_USB/satellite_data/HSI_data/hyspecnet11k/test_data'
+    'hysp11k-ext-val': '/media/nercms/EXTERNAL_USB/satellite_data/HSI_data/hyspecnet11k/test_data',
+
+    'ohs-train': '/media/nercms/EXTERNAL_USB/satellite_data/WHU-OHS/OHS_MS_4_9_8bit_npy/train',
+    'ohs-val': '/media/nercms/EXTERNAL_USB/satellite_data/WHU-OHS/OHS_MS_4_9_8bit_npy/test'
 
 
 }

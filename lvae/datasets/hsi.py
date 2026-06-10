@@ -32,6 +32,32 @@ class HsiDataset(Dataset):
         im = self.transform(img)
         return im
 
+class OHSDataset(Dataset):
+    def __init__(self, root, transform=None):
+        self.root = Path(root)
+        self.transform = transform
+        self.image_paths = sorted(self.root.rglob('*.npy'))
+        assert len(self.image_paths) > 0, f'Found {len(self.image_paths)} images in {root}.'
+        
+        self.classes = sorted([d.name for d in self.root.iterdir() if d.is_dir()])
+        self.class_to_idx = {cls_name: i for i, cls_name in enumerate(self.classes)}
+
+    def __len__(self):
+        return len(self.image_paths)
+
+    def __getitem__(self, index):
+        impath = self.image_paths[index]
+        img = np.load(impath)
+        # OHS has 32 bands, slice first 30 to match pre-trained base codec
+        img = img[0:30, :, :]
+        img = np.transpose(img, (1, 2, 0)) # H, W, C
+        im = self.transform(img)
+        
+        # Get label from parent directory name
+        label = self.class_to_idx[impath.parent.name]
+        return im, label
+
+
 
 def get_hsi_dateset(name: str, transform_cfg: str=None) -> Dataset:
     """ get image dataset from name
@@ -55,7 +81,10 @@ def get_hsi_dateset(name: str, transform_cfg: str=None) -> Dataset:
     transform = tv.transforms.Compose(transform)
 
     # find dataset root, and initialize dataset
-    dataset = HsiDataset(root=known_datasets.get(name, name), transform=transform)
+    if name.startswith('ohs'):
+        dataset = OHSDataset(root=known_datasets.get(name, name), transform=transform)
+    else:
+        dataset = HsiDataset(root=known_datasets.get(name, name), transform=transform)
     return dataset
 
 if __name__ == "__main__":
