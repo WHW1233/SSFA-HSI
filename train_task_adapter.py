@@ -195,5 +195,5 @@ def run_co_adaptation(
     print("Co-adaptation integration pipeline run successfully completed!")
 
 if __name__ == "__main__":
-    # Default to a 3-step CPU dry-run verification
-    run_co_adaptation(epochs=1, dry_run_steps=3)
+    # Run for 100 steps to observe loss convergence trends
+    run_co_adaptation(epochs=1, dry_run_steps=100)
