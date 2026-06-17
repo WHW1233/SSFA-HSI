@@ -59,6 +59,55 @@ class OHSDataset(Dataset):
 
 
 
+class PaviaDataset(Dataset):
+    def __init__(self, root, transform=None, split='train', patch_size=64):
+        self.root = Path(root)
+        self.transform = transform
+        self.patch_size = patch_size
+        self.split = split
+        
+        # Load data
+        img = np.load(self.root / 'Pavia_uint8.npy') # (1096, 715, 102)
+        gt = np.load(self.root / 'Pavia_gt.npy')     # (1096, 715)
+        
+        # Slice to 30 bands to match base model
+        img = img[:, :, :30]
+        
+        # Split: use top 80% for training, bottom 20% for testing
+        H, W, C = img.shape
+        split_h = int(H * 0.8)
+        
+        if split == 'train':
+            self.img = img[:split_h, :, :]
+            self.gt = gt[:split_h, :]
+        else:
+            self.img = img[split_h:, :, :]
+            self.gt = gt[split_h:, :]
+            
+    def __len__(self):
+        # We can simulate a large number of patches by sampling
+        if self.split == 'train':
+            return 8000
+        else:
+            return 1000
+
+    def __getitem__(self, index):
+        H, W, C = self.img.shape
+        
+        # Random crop
+        y = np.random.randint(0, H - self.patch_size + 1)
+        x = np.random.randint(0, W - self.patch_size + 1)
+        
+        patch_img = self.img[y:y+self.patch_size, x:x+self.patch_size, :]
+        patch_gt = self.gt[y:y+self.patch_size, x:x+self.patch_size]
+        
+        if self.transform:
+            patch_img = self.transform(patch_img)
+            
+        patch_gt = torch.from_numpy(patch_gt).long()
+        return patch_img, patch_gt
+
+
 def get_hsi_dateset(name: str, transform_cfg: str=None) -> Dataset:
     """ get image dataset from name
 
@@ -83,6 +132,9 @@ def get_hsi_dateset(name: str, transform_cfg: str=None) -> Dataset:
     # find dataset root, and initialize dataset
     if name.startswith('ohs'):
         dataset = OHSDataset(root=known_datasets.get(name, name), transform=transform)
+    elif name.startswith('pavia'):
+        split = 'train' if 'train' in name else 'test'
+        dataset = PaviaDataset(root=known_datasets.get(name, name), transform=transform, split=split)
     else:
         dataset = HsiDataset(root=known_datasets.get(name, name), transform=transform)
     return dataset

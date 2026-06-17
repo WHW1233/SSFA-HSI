@@ -55,16 +55,24 @@ $$\mathbf{z} \xrightarrow{\text{SpMA}} \mathbf{z}_{\text{spec}} \xrightarrow{\te
 
 #### Trainability Efficiency
 * **Base HSI Codec:** Completely **frozen** during training.
-* **Trainable Parameters:** **`1.0090%`** parameter overhead (only the sequential adapters and U-Net segmenter parameters are unfrozen).
+* **Trainable Parameters:** **`1.0090%`** parameter overhead (only the sequential adapters and downstream parameters are unfrozen).
 
 ---
 
 ### 4. Running the Training Pipeline (Co-Adaptation)
 
-To initiate training on your RTX 4090 GPU server, execute:
+If you want to train the SSFMA adapters using a downstream task while keeping the VAE codec frozen, use the `train_task_adapter.py` script. It now supports multiple downstream tasks.
 
+### 1. Image Classification
+To perform Image Classification (e.g. WHU-OHS dataset), run:
 ```bash
-python train_task_adapter.py
+python train_task_adapter.py --task_type classification --dataset ohs-train --epochs 20 --batch_size 16
+```
+
+### 2. Pixel-Level Classification (Semantic Segmentation)
+To perform Pixel-Level Classification (e.g. Pavia dataset), run:
+```bash
+python train_task_adapter.py --task_type segmentation --dataset pavia-train --epochs 20 --batch_size 16
 ```
 
 The script will:
